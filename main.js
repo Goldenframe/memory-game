@@ -1,112 +1,111 @@
-let isEasy = true;
-let isMedium = false;
-let isHard = false;
-let tileItem = [1, 2, 3, 4, 5, 6, 7, 8];
+const levels = {
+  easy: { pairs: 8, attempts: 10 },
+  medium: { pairs: 16, attempts: 12 },
+  hard: { pairs: 24, attempts: 14 },
+};
 
-function createTiles() {
-  tileItem = isEasy
-    ? [1, 2, 3, 4, 5, 6, 7, 8]
-    : isMedium
-    ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-    : [
-        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-        21, 22, 23, 24,
-      ];
+const board = document.querySelector(".tiles");
+const attemptCount = document.querySelector(".attempt-count");
+const status = document.querySelector(".game-status");
+const levelButtons = document.querySelectorAll("[data-level]");
 
-  const tilesItems = [...tileItem, ...tileItem].sort(() => Math.random() - 0.5);
+let level = "easy";
+let attempts;
+let matchedPairs;
+let openTiles;
+let revealTimer;
+let gameOver;
 
-  let openTiles = [];
-  let foundDoubles = 0;
-  let attempts = isEasy ? 10 : isMedium ? 12 : 14;
+function shuffledDeck(pairs) {
+  const values = Array.from({ length: pairs }, (_, index) => index + 1);
+  const deck = [...values, ...values];
 
-  let attemptCount = document.querySelector(".attempt-count");
+  for (let index = deck.length - 1; index > 0; index--) {
+    const other = Math.floor(Math.random() * (index + 1));
+    [deck[index], deck[other]] = [deck[other], deck[index]];
+  }
 
-  attemptCount.innerHTML = attempts;
-  document.querySelector(".attempts").appendChild(attemptCount);
+  return deck;
+}
 
-  const tilesContainer = document.querySelector(".tiles");
+function startGame(nextLevel) {
+  clearTimeout(revealTimer);
+  level = nextLevel;
+  const settings = levels[level];
+  attempts = settings.attempts;
+  matchedPairs = 0;
+  openTiles = [];
+  gameOver = false;
+  attemptCount.textContent = attempts;
+  status.textContent = "";
 
-  tilesContainer.innerHTML = "";
+  for (const button of levelButtons) {
+    button.setAttribute("aria-pressed", String(button.dataset.level === level));
+  }
 
-  for (let i = 0; i < tilesItems.length; i++) {
-    let element = document.createElement("div");
-    element.innerHTML = tilesItems[i];
-    element.classList.add("tile");
-    element.setAttribute("data", tilesItems[i]);
+  const tiles = shuffledDeck(settings.pairs).map((value, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "tile";
+    button.textContent = value;
+    button.setAttribute("aria-label", "Card " + (index + 1) + ", face down");
 
-    element.onclick = function () {
-      if (openTiles.length < 2) {
-        this.classList.add("isOpen");
-        openTiles.push(this);
-      }
+    const tile = { button, value, number: index + 1, matched: false };
+    button.addEventListener("click", () => openTile(tile));
+    return button;
+  });
 
-      if (openTiles.length === 2) {
-        setTimeout(() => {
-          if (
-            openTiles[0] &&
-            openTiles[1] &&
-            openTiles[0].getAttribute("data") ===
-              openTiles[1].getAttribute("data")
-          ) {
-            openTiles.forEach((openTile) => {
-              openTile.classList.add("foundDouble");
-              openTile.classList.remove("isOpen");
-            });
-            foundDoubles += 2;
-          } else {
-            openTiles.forEach((openTile) => {
-              openTile.classList.remove("isOpen");
-            });
-            attempts--;
-            attemptCount.innerHTML = attempts;
+  board.replaceChildren(...tiles);
+}
 
-            console.log(attempts);
-            if (attempts === 0) {
-              alert("You've lost.");
-              window.location.reload();
-            }
-          }
-          openTiles = [];
-        }, 1300);
-      }
-    };
-    tilesContainer.appendChild(element);
+function openTile(tile) {
+  if (gameOver || tile.matched || openTiles.includes(tile) || openTiles.length === 2) return;
+
+  tile.button.classList.add("isOpen");
+  tile.button.setAttribute("aria-label", "Card " + tile.number + ", value " + tile.value);
+  openTiles.push(tile);
+
+  if (openTiles.length === 2) {
+    revealTimer = setTimeout(checkPair, 1300);
   }
 }
 
-const resetBtn = document.querySelector(".reset-btn");
-resetBtn.addEventListener("click", () => {
-  window.location.reload();
-});
+function checkPair() {
+  const [first, second] = openTiles;
+  const matched = first.value === second.value;
 
-const easyDifficultyBtn = document.getElementById("easy-btn");
-const mediumDifficultyBtn = document.getElementById("medium-btn");
-const hardDifficultyBtn = document.getElementById("hard-btn");
+  for (const tile of openTiles) {
+    tile.button.classList.remove("isOpen");
+    if (matched) {
+      tile.matched = true;
+      tile.button.classList.add("foundDouble");
+      tile.button.setAttribute("aria-disabled", "true");
+      tile.button.setAttribute("aria-label", "Matched card, value " + tile.value);
+    } else {
+      tile.button.setAttribute("aria-label", "Card " + tile.number + ", face down");
+    }
+  }
+  openTiles = [];
 
-easyDifficultyBtn.addEventListener("click", () => {
-  isEasy = true;
-  isMedium = false;
-  isHard = false;
+  if (matched) {
+    matchedPairs++;
+    if (matchedPairs === levels[level].pairs) {
+      gameOver = true;
+      status.textContent = "You won!";
+    }
+  } else {
+    attempts--;
+    attemptCount.textContent = attempts;
+    if (attempts === 0) {
+      gameOver = true;
+      status.textContent = "No attempts left. Start a new game to try again.";
+    }
+  }
+}
 
-  createTiles(); 
-});
+for (const button of levelButtons) {
+  button.addEventListener("click", () => startGame(button.dataset.level));
+}
+document.querySelector(".reset-btn").addEventListener("click", () => startGame(level));
 
-mediumDifficultyBtn.addEventListener("click", () => {
-  isMedium = true;
-  isEasy = false;
-  isHard = false;
-
-  createTiles(); 
-});
-
-hardDifficultyBtn.addEventListener("click", () => {
-  isHard = true;
-  isEasy = false;
-  isMedium = false;
-
-  createTiles(); 
-});
-
-window.addEventListener("load", function() {
-  createTiles();
-});
+startGame(level);
