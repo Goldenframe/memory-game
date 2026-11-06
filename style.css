@@ -5,8 +5,7 @@
 }
 
 .tiles {
-  width: 1240px;
-  height: 440px;
+  width: min(100% - 2rem, 78rem);
   margin: 2em auto;
   display: flex;
   flex-wrap: wrap;
@@ -18,8 +17,11 @@
 
 .tile {
   border: solid black 5px;
-  width: 150px;
-  height: 150px;
+  width: clamp(3.5rem, 12vw, 9.375rem);
+  aspect-ratio: 1;
+  background: white;
+  color: black;
+  cursor: pointer;
   font-size: 30px;
   position: relative;
   display: flex;
@@ -50,8 +52,18 @@
 
 .reset-btn {
   display: block;
-  margin: 70px auto;
+  margin: 1rem auto;
   padding: 20px 40px;
   font-size: 20px;
   background-color: bisque;
+}
+
+.game-status {
+  min-height: 1.5em;
+  text-align: center;
+}
+
+.tile:focus-visible {
+  outline: 3px solid #175cd3;
+  outline-offset: 2px;
 }
